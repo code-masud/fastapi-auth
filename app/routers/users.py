@@ -1,9 +1,11 @@
 
+from ctypes import util
+
 from fastapi import APIRouter, HTTPException, status, Response, Depends
 from typing import List, Optional
 from ..schemas import UserResponse, User
 from ..database import get_db
-from .. import models
+from .. import models, utils
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -26,7 +28,9 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
 
 @router.post('/', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: User, db: Session = Depends(get_db)):
+    user.password = utils.get_password_hash(user.password)
     db_user = models.User(**user.model_dump())
+
     db.add(db_user)
     try:
         db.commit()
@@ -43,7 +47,10 @@ def update_user(user_id: int, user_data: User, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
     
     for field, value in user_data.model_dump().items():
-        setattr(db_user, field, value)
+        if field == 'password':
+            setattr(db_user, field, utils.get_password_hash(value))
+        else:
+            setattr(db_user, field, value)
     try:
         db.commit()
     except IntegrityError as e:
