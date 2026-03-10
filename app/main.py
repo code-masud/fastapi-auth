@@ -1,6 +1,6 @@
 
 from fastapi import FastAPI
-from .routers import users
+from .routers import users, auth
 from . import models 
 from .database import engine
 
@@ -13,3 +13,4 @@ def root():
     return {'message': 'hello world!'}
 
 app.include_router(users.router)
+app.include_router(auth.router)
