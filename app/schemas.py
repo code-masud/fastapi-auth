@@ -18,6 +18,17 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    
+
 class TokenData(BaseModel):
     id: Optional[int] = None
+
+class Post(BaseModel):
+    title:str
+    slug:str
+    content:str
+    published:bool
+
+class PostResponse(Post):
+    id:int
+    author:int
+    created_at:datetime
