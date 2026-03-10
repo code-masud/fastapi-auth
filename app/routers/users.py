@@ -1,74 +1,62 @@
-from fastapi import APIRouter, HTTPException, status, Response
+
+from fastapi import APIRouter, HTTPException, status, Response, Depends
 from typing import List, Optional
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from ..schemas import UserResponse, User
+from ..database import get_db
+from .. import models
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(
     prefix='/users',
     tags=['User']
 )
 
-# Connect to your postgres DB
-conn = psycopg2.connect(
-    database='fastapi',
-    user='postgres',
-    password='root',
-    host='localhost',
-    port=5432,
-    cursor_factory=RealDictCursor
-)
-
-# Open a cursor to perform database operations
-cur = conn.cursor()
-
 @router.get('/', response_model=List[UserResponse])
-def read_users():
-    cur.execute("""SELECT * FROM users""")
-    users = cur.fetchall()
+def read_users(db: Session = Depends(get_db)):
+    users = db.query(models.User).all()
     return users
 
-@router.get('/{id}')
-def read_user(id: int, response_model=UserResponse):
-    cur.execute("""SELECT * FROM users WHERE id = %s """, (str(id),))
-    user = cur.fetchone()
+@router.get('/{user_id}', response_model=UserResponse)
+def read_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.get(models.User, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {id} not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
     return  user
 
 @router.post('/', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: User):
-    cur.execute("""INSERT INTO users(email, password) VALUES (%s, %s) RETURNING * """, (user.email,  user.password))
-    user = cur.fetchone()
-    conn.commit()
-    return user
+def create_user(user: User, db: Session = Depends(get_db)):
+    db_user = models.User(**user.model_dump())
+    db.add(db_user)
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'{e}')
+    db.refresh(db_user)
+    return db_user
 
-@router.put('/{id}', response_model=UserResponse)
-def update_user(id: int, user_data: User):
-    cur.execute("""SELECT * FROM users WHERE id = %s """, (str(id),))
-    user = cur.fetchone()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {id} not found')
+@router.put('/{user_id}', response_model=UserResponse)
+def update_user(user_id: int, user_data: User, db: Session = Depends(get_db)):
+    db_user = db.get(models.User, user_id)
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
     
-    cur.execute("""UPDATE users SET email=%s, password=%s WHERE id=%s RETURNING * """, (user_data.email,  user_data.password, id))
-    user = cur.fetchone()
-    conn.commit()
-    return user
+    for field, value in user_data.model_dump().items():
+        setattr(db_user, field, value)
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'{e}')
+    db.refresh(db_user)
+    return db_user
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(id: int):
-
-    cur.execute(
-        """DELETE FROM users WHERE id = %s RETURNING *""",
-        (id,)
-    )
-
-    deleted_user = cur.fetchone()
-
-    if not deleted_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User id: {id} not found"
-        )
-
-    conn.commit()
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
+    
+    db.delete(user)
+    db.commit()
