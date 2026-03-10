@@ -14,13 +14,13 @@ def login(credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depe
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials"
         )
     
     if not utils.verify_password(credentials.password, user.password):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials"
         )
     
