@@ -15,20 +15,20 @@ router = APIRouter(
 )
 
 @router.get('/', response_model=List[UserResponse])
-def read_users(db: Session = Depends(get_db), token_data: int = Depends(oauth2.get_current_user)):
-    print(token_data)
+def read_users(db: Session = Depends(get_db), current_user: UserResponse = Depends(oauth2.get_current_user)):
+    print(current_user.id, current_user.email)
     users = db.query(models.User).all()
     return users
 
 @router.get('/{user_id}', response_model=UserResponse)
-def read_user(user_id: int, db: Session = Depends(get_db), token_data: int = Depends(oauth2.get_current_user)):
+def read_user(user_id: int, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
     return  user
 
 @router.post('/', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: User, db: Session = Depends(get_db), token_data: int = Depends(oauth2.get_current_user)):
+def create_user(user: User, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     user.password = utils.get_password_hash(user.password)
     db_user = models.User(**user.model_dump())
 
@@ -42,7 +42,7 @@ def create_user(user: User, db: Session = Depends(get_db), token_data: int = Dep
     return db_user
 
 @router.put('/{user_id}', response_model=UserResponse)
-def update_user(user_id: int, user_data: User, db: Session = Depends(get_db), token_data: int = Depends(oauth2.get_current_user)):
+def update_user(user_id: int, user_data: User, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     db_user = db.get(models.User, user_id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
@@ -61,7 +61,7 @@ def update_user(user_id: int, user_data: User, db: Session = Depends(get_db), to
     return db_user
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int, db: Session = Depends(get_db), token_data: int = Depends(oauth2.get_current_user)):
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {user_id} not found')
