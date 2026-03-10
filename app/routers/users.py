@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Response
 from typing import List, Optional
-import random
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from ..schemas import UserResponse, User
 
 router = APIRouter(
@@ -8,53 +9,66 @@ router = APIRouter(
     tags=['User']
 )
 
-user_list = [{'id':1, 'email':'bob@gmail.com', 'password': 'asdf'}]
+# Connect to your postgres DB
+conn = psycopg2.connect(
+    database='fastapi',
+    user='postgres',
+    password='root',
+    host='localhost',
+    port=5432,
+    cursor_factory=RealDictCursor
+)
 
-def get_user(id: int) -> Optional[dict]:
-    return next((user for user in user_list if user['id'] == id), None)
-
-def get_user_index(id: int) -> Optional[int]:
-    return next((i for i, user in enumerate(user_list) if user['id'] == id), None)
+# Open a cursor to perform database operations
+cur = conn.cursor()
 
 @router.get('/', response_model=List[UserResponse])
 def read_users():
-    return user_list
+    cur.execute("""SELECT * FROM users""")
+    users = cur.fetchall()
+    return users
 
 @router.get('/{id}')
 def read_user(id: int, response_model=UserResponse):
-    user = get_user(id)
+    cur.execute("""SELECT * FROM users WHERE id = %s """, (str(id),))
+    user = cur.fetchone()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {id} not found')
     return  user
 
 @router.post('/', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: User):
-    user_data = user.dict()
-    user_data['id'] = random.randint(1, 100)
-    user_list.append(user_data)
-    return user_data
+    cur.execute("""INSERT INTO users(email, password) VALUES (%s, %s) RETURNING * """, (user.email,  user.password))
+    user = cur.fetchone()
+    conn.commit()
+    return user
 
 @router.put('/{id}', response_model=UserResponse)
 def update_user(id: int, user_data: User):
-    index = get_user_index(id)
-
-    if index == None:
+    cur.execute("""SELECT * FROM users WHERE id = %s """, (str(id),))
+    user = cur.fetchone()
+    if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User id: {id} not found')
     
-    user = user_data.dict()
-    user['id'] = id
-    user_list[index] = user
-    
+    cur.execute("""UPDATE users SET email=%s, password=%s WHERE id=%s RETURNING * """, (user_data.email,  user_data.password, id))
+    user = cur.fetchone()
+    conn.commit()
     return user
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int):
-    index = get_user_index(user_id)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(id: int):
 
-    if index is None:
+    cur.execute(
+        """DELETE FROM users WHERE id = %s RETURNING *""",
+        (id,)
+    )
+
+    deleted_user = cur.fetchone()
+
+    if not deleted_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with id {user_id} not found"
+            detail=f"User id: {id} not found"
         )
 
-    user_list.pop(index)
+    conn.commit()
