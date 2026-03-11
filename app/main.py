@@ -1,20 +1,12 @@
 
 from fastapi import FastAPI
 from .routers import auth_router, post_router, user_router
-from . import __models 
-from .database import engine
+from .database import engine, Base
 from .config import settings
 
-__models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-@app.get("/info")
-def get_info():
-    return {
-        "database_url": settings.DATABASE_URL,
-        "debug": settings.DEBUG
-    }
 
 @app.get('/')
 def root():
