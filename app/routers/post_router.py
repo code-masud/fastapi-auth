@@ -14,7 +14,6 @@ router = APIRouter(
 
 
 @router.get('/', response_model=List[PostWithLikes])
-# @router.get('/')
 def read_posts(db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user),
                limit: int = 10, skip: int = 0, search: str = ""):
     return post_service.read_posts(db, current_user, limit, skip, search)

@@ -47,7 +47,8 @@ def read_post(post_id: int, db: Session = Depends(get_db), current_user: UserRes
         .group_by(Post.id)
     )
 
-    db_post = post_query.filter(Post.id == post_id, Post.author == current_user.id).first()
+    db_post = post_query.filter(
+        Post.id == post_id, Post.author == current_user.id).first()
     return db_post
 
 
