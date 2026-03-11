@@ -4,7 +4,7 @@ from .routers import auth_router, post_router, user_router, like_router
 from .database import engine, Base
 from .config import settings
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
