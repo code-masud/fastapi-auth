@@ -23,8 +23,8 @@ def read_user(user_id: int, db: Session = Depends(get_db), current_user: int = D
 
 
 @router.post('/', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: User, db: Session = Depends(get_db), current_user: int = Depends(get_current_user)):
-    return user_service.create_user(user, db, current_user)
+def create_user(user: User, db: Session = Depends(get_db)):
+    return user_service.create_user(user, db)
 
 
 @router.put('/{user_id}', response_model=UserResponse)

@@ -21,7 +21,7 @@ def read_user(user_id: int, db: Session = Depends(get_db), current_user: int = D
     return user
 
 
-def create_user(user: User, db: Session = Depends(get_db), current_user: int = Depends(get_current_user)):
+def create_user(user: User, db: Session = Depends(get_db)):
     user.password = get_password_hash(user.password)
     db_user = User(**user.model_dump())
 
