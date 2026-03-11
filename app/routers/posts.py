@@ -1,8 +1,11 @@
 
+from operator import or_
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
 from ..database import get_db
 from .. import models, schemas, oauth2
 
@@ -11,17 +14,34 @@ router = APIRouter(
     tags=['Post']
 )
 
+
 @router.get('/', response_model=List[schemas.PostResponse])
-def read_posts(db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    posts = db.query(models.Post).filter(models.Post.author==current_user.id).all()
+def read_posts(db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user),
+               limit: int = 10, skip: int = 0, search: str = ""):
+    query = db.query(models.Post).filter(
+            models.Post.author == current_user.id)
+
+    if search:
+        query = query.filter(
+            or_(
+                models.Post.title.contains(search),
+                models.Post.content.contains(search)
+            )
+        )
+
+    posts = query.limit(limit).offset(skip).all()
     return posts
+
 
 @router.get('/{post_id}', response_model=schemas.PostResponse)
 def read_post(post_id: int, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    db_post = db.query(models.Post).filter(models.Post.id == post_id, models.Post.author == current_user.id).first()
+    db_post = db.query(models.Post).filter(
+        models.Post.id == post_id, models.Post.author == current_user.id).first()
     if not db_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Post id: {post_id} not found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Post id: {post_id} not found')
     return db_post
+
 
 @router.post('/', response_model=schemas.PostResponse, status_code=status.HTTP_201_CREATED)
 def create_post(post_data: schemas.Post, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
@@ -35,20 +55,24 @@ def create_post(post_data: schemas.Post, db: Session = Depends(get_db), current_
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'{e}')
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f'{e}')
+
     db.refresh(db_post)
     return db_post
+
 
 @router.put('/{post_id}', response_model=schemas.PostResponse)
 def update_post(post_id: int, post_data: schemas.Post, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
     db_post = db.get(models.Post, post_id)
     if not db_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Post id: {post_id} not found')
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Post id: {post_id} not found')
+
     if db_post.author != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'You are not authorized to perform the request')
-    
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f'You are not authorized to perform the request')
+
     for field, value in post_data.model_dump().items():
         setattr(db_post, field, value)
 
@@ -58,19 +82,23 @@ def update_post(post_id: int, post_data: schemas.Post, db: Session = Depends(get
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'{e}')
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f'{e}')
+
     db.refresh(db_post)
     return db_post
+
 
 @router.delete('/{post_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(post_id: int, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
     db_post = db.get(models.Post, post_id)
     if not db_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Post id: {post_id} not found')
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Post id: {post_id} not found')
+
     if db_post.author != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'You are not authorized to perform the request')
-    
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f'You are not authorized to perform the request')
+
     db.delete(db_post)
     db.commit()
