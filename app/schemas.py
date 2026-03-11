@@ -30,5 +30,5 @@ class Post(BaseModel):
 
 class PostResponse(Post):
     id:int
-    owner:UserResponse
     created_at:datetime
+    owner:UserResponse
