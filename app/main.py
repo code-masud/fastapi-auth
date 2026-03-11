@@ -1,6 +1,6 @@
 
 from fastapi import FastAPI
-from .routers import auth_router, post_router, user_router
+from .routers import auth_router, post_router, user_router, like_router
 from .database import engine, Base
 from .config import settings
 
@@ -15,3 +15,4 @@ def root():
 app.include_router(user_router.router)
 app.include_router(auth_router.router)
 app.include_router(post_router.router)
+app.include_router(like_router.router)
