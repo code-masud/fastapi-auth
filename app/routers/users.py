@@ -16,7 +16,6 @@ router = APIRouter(
 
 @router.get('/', response_model=List[UserResponse])
 def read_users(db: Session = Depends(get_db), current_user: UserResponse = Depends(oauth2.get_current_user)):
-    print(current_user.id, current_user.email)
     users = db.query(models.User).all()
     return users
 
