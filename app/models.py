@@ -1,6 +1,7 @@
 
 from .database import Base
 from sqlalchemy import TIMESTAMP, Boolean, Column, ForeignKey, Integer, String, text, Text
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = 'users'
@@ -8,6 +9,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password = Column(String)
+    posts = relationship("Post", back_populates="owner")
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
 class Post(Base):
@@ -19,4 +21,5 @@ class Post(Base):
     content = Column(Text, nullable=False)
     author = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     published = Column(Boolean, server_default='True', index=True)
+    owner = relationship("User", back_populates="posts")
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
