@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..oauth2 import get_current_user
 from ..schemas.user_schema import UserResponse
-from ..schemas.post_schema import Post, PostResponse
+from ..schemas.post_schema import Post, PostResponse, PostWithLikes
 from ..services import post_service
 
 router = APIRouter(
@@ -13,13 +13,14 @@ router = APIRouter(
 )
 
 
-@router.get('/', response_model=List[PostResponse])
+@router.get('/', response_model=List[PostWithLikes])
+# @router.get('/')
 def read_posts(db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user),
                limit: int = 10, skip: int = 0, search: str = ""):
     return post_service.read_posts(db, current_user, limit, skip, search)
 
 
-@router.get('/{post_id}', response_model=PostResponse)
+@router.get('/{post_id}', response_model=PostWithLikes)
 def read_post(post_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
     return post_service.read_post(post_id, db, current_user)
 

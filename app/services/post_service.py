@@ -1,38 +1,53 @@
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from ..oauth2 import get_current_user
 from ..database import get_db
 from ..schemas.post_schema import Post
 from ..schemas.user_schema import UserResponse
 from ..models.post import Post
+from ..models.like import Like
 
 
 def read_posts(db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user),
                limit: int = 10, skip: int = 0, search: str = ""):
-    query = db.query(Post).filter(
-        Post.author == current_user.id)
+    post_query = (
+        db.query(
+            Post,
+            func.count(Like.post_id).label("likes")
+        )
+        .outerjoin(Like, Post.id == Like.post_id)
+        .group_by(Post.id)
+    )
+
+    post_query = post_query.filter(Post.author == current_user.id)
 
     if search:
-        query = query.filter(
+        post_query = post_query.filter(
             or_(
                 Post.title.contains(search),
                 Post.content.contains(search)
             )
         )
 
-    posts = query.limit(limit).offset(skip).all()
+    posts = post_query.limit(limit).offset(skip).all()
+
     return posts
 
 
 def read_post(post_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
-    db_post = db.query(Post).filter(
-        Post.id == post_id, Post.author == current_user.id).first()
+    post_query = (
+        db.query(
+            Post,
+            func.count(Like.post_id).label("likes")
+        )
+        .outerjoin(Like, Post.id == Like.post_id)
+        .group_by(Post.id)
+    )
 
-    if not db_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Post id: {post_id} not found')
+    db_post = post_query.filter(Post.id == post_id, Post.author == current_user.id).first()
     return db_post
 
 
