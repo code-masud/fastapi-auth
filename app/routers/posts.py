@@ -13,12 +13,12 @@ router = APIRouter(
 
 @router.get('/', response_model=List[schemas.PostResponse])
 def read_posts(db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    posts = db.query(models.Post).all()
+    posts = db.query(models.Post).filter(models.Post.author==current_user.id).all()
     return posts
 
 @router.get('/{post_id}', response_model=schemas.PostResponse)
 def read_post(post_id: int, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    db_post = db.get(models.Post, post_id)
+    db_post = db.query(models.Post).filter(models.Post.id == post_id, models.Post.author == current_user.id).first()
     if not db_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Post id: {post_id} not found')
     return db_post
@@ -46,6 +46,9 @@ def update_post(post_id: int, post_data: schemas.Post, db: Session = Depends(get
     if not db_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Post id: {post_id} not found')
     
+    if db_post.author != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'You are not authorized to perform the request')
+    
     for field, value in post_data.model_dump().items():
         setattr(db_post, field, value)
 
@@ -65,6 +68,9 @@ def delete_post(post_id: int, db: Session = Depends(get_db), current_user: schem
     db_post = db.get(models.Post, post_id)
     if not db_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Post id: {post_id} not found')
+    
+    if db_post.author != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'You are not authorized to perform the request')
     
     db.delete(db_post)
     db.commit()
