@@ -1,31 +1,24 @@
-
-from operator import or_
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Optional, List
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
+from ..oauth2 import get_current_user
 from ..database import get_db
-from .. import models, schemas, oauth2
-
-router = APIRouter(
-    prefix='/posts',
-    tags=['Post']
-)
+from ..schemas.post_schema import Post
+from ..schemas.user_schema import UserResponse
+from ..models.post import Post
 
 
-@router.get('/', response_model=List[schemas.PostResponse])
-def read_posts(db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user),
+def read_posts(db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user),
                limit: int = 10, skip: int = 0, search: str = ""):
-    query = db.query(models.Post).filter(
-            models.Post.author == current_user.id)
+    query = db.query(Post).filter(
+        Post.author == current_user.id)
 
     if search:
         query = query.filter(
             or_(
-                models.Post.title.contains(search),
-                models.Post.content.contains(search)
+                Post.title.contains(search),
+                Post.content.contains(search)
             )
         )
 
@@ -33,19 +26,18 @@ def read_posts(db: Session = Depends(get_db), current_user: schemas.UserResponse
     return posts
 
 
-@router.get('/{post_id}', response_model=schemas.PostResponse)
-def read_post(post_id: int, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    db_post = db.query(models.Post).filter(
-        models.Post.id == post_id, models.Post.author == current_user.id).first()
+def read_post(post_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
+    db_post = db.query(Post).filter(
+        Post.id == post_id, Post.author == current_user.id).first()
+
     if not db_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Post id: {post_id} not found')
     return db_post
 
 
-@router.post('/', response_model=schemas.PostResponse, status_code=status.HTTP_201_CREATED)
-def create_post(post_data: schemas.Post, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    db_post = models.Post(
+def create_post(post_data: Post, db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
+    db_post = Post(
         **post_data.model_dump(),
         author=current_user.id
     )
@@ -62,9 +54,8 @@ def create_post(post_data: schemas.Post, db: Session = Depends(get_db), current_
     return db_post
 
 
-@router.put('/{post_id}', response_model=schemas.PostResponse)
-def update_post(post_id: int, post_data: schemas.Post, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    db_post = db.get(models.Post, post_id)
+def update_post(post_id: int, post_data: Post, db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
+    db_post = db.get(Post, post_id)
     if not db_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Post id: {post_id} not found')
@@ -89,9 +80,8 @@ def update_post(post_id: int, post_data: schemas.Post, db: Session = Depends(get
     return db_post
 
 
-@router.delete('/{post_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(post_id: int, db: Session = Depends(get_db), current_user: schemas.UserResponse = Depends(oauth2.get_current_user)):
-    db_post = db.get(models.Post, post_id)
+def delete_post(post_id: int, db: Session = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
+    db_post = db.get(Post, post_id)
     if not db_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Post id: {post_id} not found')

@@ -5,8 +5,8 @@ from jwt.exceptions import InvalidTokenError
 from fastapi import Depends, HTTPException, status
 from fastapi.security.oauth2 import OAuth2PasswordBearer
 from .database import get_db
-from . import models
-from .schemas import TokenData
+from . import __models
+from .__schemas import TokenData
 from .config import settings
 
 SECRET_KEY = settings.SECRET_KEY
@@ -41,6 +41,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     
     token_data = verify_access_token(token, credentials_exception)
-    user = db.query(models.User).filter(models.User.id==token_data.id).first()
+    user = db.query(__models.User).filter(__models.User.id==token_data.id).first()
 
     return user 

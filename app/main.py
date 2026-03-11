@@ -1,11 +1,11 @@
 
 from fastapi import FastAPI
-from .routers import users, auth, posts
-from . import models 
+from .routers import auth_router, post_router, user_router
+from . import __models 
 from .database import engine
 from .config import settings
 
-models.Base.metadata.create_all(bind=engine)
+__models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -20,6 +20,6 @@ def get_info():
 def root():
     return {'message': 'hello world!'}
 
-app.include_router(users.router)
-app.include_router(auth.router)
-app.include_router(posts.router)
+app.include_router(user_router.router)
+app.include_router(auth_router.router)
+app.include_router(post_router.router)
